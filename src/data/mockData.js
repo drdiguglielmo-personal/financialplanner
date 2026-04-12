@@ -33,18 +33,18 @@ export const FAKE_ACCOUNTS_DB = {
 };
 
 export const FAKE_TRANSACTIONS_DB = [
-  { id: "t001", name: "Whole Foods Market", category: "Groceries", amount: -89.34, date: "2025-06-05", icon: "🛒", color: "#34d399" },
-  { id: "t002", name: "Venmo — Emma", category: "Rent/Housing", amount: -725.0, date: "2025-06-01", icon: "🏠", color: "#60a5fa" },
-  { id: "t003", name: "Starbucks", category: "Dining", amount: -6.75, date: "2025-06-06", icon: "☕", color: "#fb923c" },
-  { id: "t004", name: "Netflix", category: "Entertainment", amount: -15.99, date: "2025-06-03", icon: "📺", color: "#a78bfa" },
-  { id: "t005", name: "Direct Deposit", category: "Income", amount: 3500.0, date: "2025-06-01", icon: "💰", color: "#4ade80" },
-  { id: "t006", name: "CTA Transit Pass", category: "Transport", amount: -105.0, date: "2025-06-01", icon: "🚊", color: "#f472b6" },
-  { id: "t007", name: "Chipotle", category: "Dining", amount: -12.5, date: "2025-06-07", icon: "🌯", color: "#fb923c" },
-  { id: "t008", name: "Amazon", category: "Shopping", amount: -45.99, date: "2025-06-04", icon: "📦", color: "#fbbf24" },
-  { id: "t009", name: "Spotify", category: "Entertainment", amount: -9.99, date: "2025-06-03", icon: "🎵", color: "#a78bfa" },
-  { id: "t010", name: "ComEd Utility", category: "Utilities", amount: -67.2, date: "2025-06-02", icon: "💡", color: "#e879f9" },
-  { id: "t011", name: "Trader Joe's", category: "Groceries", amount: -54.12, date: "2025-06-08", icon: "🛒", color: "#34d399" },
-  { id: "t012", name: "Planet Fitness", category: "Health", amount: -24.99, date: "2025-06-01", icon: "🏋️", color: "#2dd4bf" },
+  { id: "t001", name: "Whole Foods Market", category: "Groceries", amount: -89.34, date: "2026-04-05", icon: "🛒", color: "#34d399" },
+  { id: "t002", name: "Venmo — Emma", category: "Rent/Housing", amount: -725.0, date: "2026-04-01", icon: "🏠", color: "#60a5fa" },
+  { id: "t003", name: "Starbucks", category: "Dining", amount: -6.75, date: "2026-04-06", icon: "☕", color: "#fb923c" },
+  { id: "t004", name: "Netflix", category: "Entertainment", amount: -15.99, date: "2026-04-03", icon: "📺", color: "#a78bfa" },
+  { id: "t005", name: "Direct Deposit", category: "Income", amount: 3500.0, date: "2026-04-01", icon: "💰", color: "#4ade80" },
+  { id: "t006", name: "CTA Transit Pass", category: "Transport", amount: -105.0, date: "2026-04-01", icon: "🚊", color: "#f472b6" },
+  { id: "t007", name: "Chipotle", category: "Dining", amount: -12.5, date: "2026-04-07", icon: "🌯", color: "#fb923c" },
+  { id: "t008", name: "Amazon", category: "Shopping", amount: -45.99, date: "2026-04-04", icon: "📦", color: "#fbbf24" },
+  { id: "t009", name: "Spotify", category: "Entertainment", amount: -9.99, date: "2026-04-03", icon: "🎵", color: "#a78bfa" },
+  { id: "t010", name: "ComEd Utility", category: "Utilities", amount: -67.2, date: "2026-04-02", icon: "💡", color: "#e879f9" },
+  { id: "t011", name: "Trader Joe's", category: "Groceries", amount: -54.12, date: "2026-04-08", icon: "🛒", color: "#34d399" },
+  { id: "t012", name: "Planet Fitness", category: "Health", amount: -24.99, date: "2026-04-01", icon: "🏋️", color: "#2dd4bf" },
 ];
 
 export const MONTHLY_SPENDING_DB = [
@@ -73,3 +73,6 @@ export const CATEGORY_COLORS = {
   Health: "#2dd4bf",
   Income: "#4ade80",
 };
+
+/** Categories available for budgets and manual expenses (excludes income). */
+export const EXPENSE_CATEGORIES = Object.keys(CATEGORY_COLORS).filter((c) => c !== "Income");

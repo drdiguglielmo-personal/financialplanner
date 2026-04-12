@@ -16,6 +16,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    environmentMatchGlobs: [["src/**/*.test.jsx", "jsdom"]],
+    setupFiles: ["./src/test/setupVitest.js"],
     include: ["src/**/*.{test,spec}.{js,jsx}"],
   },
 });

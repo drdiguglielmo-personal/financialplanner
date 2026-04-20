@@ -1,4 +1,5 @@
 import { EXPENSE_CATEGORIES, CATEGORY_COLORS } from "../data/mockData.js";
+import { downloadCsv, openPrintableReport } from "../utils/exportReports.js";
 
 /**
  * @param {{
@@ -10,6 +11,37 @@ import { EXPENSE_CATEGORIES, CATEGORY_COLORS } from "../data/mockData.js";
  * }} props
  */
 export default function BudgetsPanel({ yearMonth, onYearMonthChange, categoryBudgets, spendingByCategory, onBudgetChange }) {
+  const exportRows = EXPENSE_CATEGORIES.map((cat) => {
+    const cap = categoryBudgets[cat] ?? 0;
+    const spent = spendingByCategory[cat] ?? 0;
+    return { category: cat, budget: cap, spent };
+  }).filter((r) => r.budget > 0 || r.spent > 0);
+
+  const totalSpent = exportRows.reduce((s, r) => s + r.spent, 0);
+
+  const handleExportCsv = () => {
+    const fn = `smartbudget-spending-by-category-${yearMonth}.csv`;
+    downloadCsv(
+      fn,
+      ["Month", "Category", "Budget", "Spent"],
+      exportRows.map((r) => [
+        yearMonth,
+        r.category,
+        r.budget.toFixed(2),
+        r.spent.toFixed(2),
+      ])
+    );
+  };
+
+  const handleExportPdf = () => {
+    openPrintableReport({
+      title: "Monthly spending by category",
+      subtitle: `${yearMonth} • Total spent: $${totalSpent.toFixed(2)}`,
+      columns: ["Category", "Budget", "Spent"],
+      rows: exportRows.map((r) => [r.category, `$${r.budget.toFixed(2)}`, `$${r.spent.toFixed(2)}`]),
+    });
+  };
+
   return (
     <div className="panel-stack">
       <div className="chart-card">
@@ -18,15 +50,25 @@ export default function BudgetsPanel({ yearMonth, onYearMonthChange, categoryBud
             <div className="chart-title">Monthly budgets</div>
             <div className="chart-sub">Set a spending cap per category and compare to actual spending this month</div>
           </div>
-          <div className="field-inline">
-            <label htmlFor="budget-month">Month</label>
-            <input
-              id="budget-month"
-              className="input-compact"
-              type="month"
-              value={yearMonth}
-              onChange={(e) => onYearMonthChange(e.target.value)}
-            />
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div className="field-inline">
+              <label htmlFor="budget-month">Month</label>
+              <input
+                id="budget-month"
+                className="input-compact"
+                type="month"
+                value={yearMonth}
+                onChange={(e) => onYearMonthChange(e.target.value)}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="btn-secondary" style={{ padding: "10px 12px", flex: "0 0 auto" }} onClick={handleExportCsv} disabled={exportRows.length === 0}>
+                Export CSV
+              </button>
+              <button type="button" className="btn-secondary" style={{ padding: "10px 12px", flex: "0 0 auto" }} onClick={handleExportPdf} disabled={exportRows.length === 0}>
+                Export PDF
+              </button>
+            </div>
           </div>
         </div>
 

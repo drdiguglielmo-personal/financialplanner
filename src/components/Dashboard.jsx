@@ -15,6 +15,7 @@ import {
   pruneBudgetAlertDismissalsForMonth,
   readDismissalsForMonth,
 } from "../services/budgetAlertDismissals.js";
+import { notifyOverspend, pruneOverspendNotified } from "../services/overspendNotify.js";
 import { financeAlertScopeKey, readActiveFinanceTarget, writeActiveFinanceTarget } from "../services/financeTarget.js";
 import { cloudHouseholdListMine } from "../services/householdCloud.js";
 import { loadHouseholdFinanceBundle, persistHouseholdFinanceBundle } from "../services/householdFinanceSync.js";
@@ -226,6 +227,18 @@ export default function Dashboard({ user }) {
     () => computeBudgetAlerts(categoryBudgets, spendingByCategoryForBudgetMonth),
     [categoryBudgets, spendingByCategoryForBudgetMonth]
   );
+
+  useEffect(() => {
+    if (!user?.id || !financeReady) return;
+    pruneOverspendNotified(user.id, budgetMonth, alertScope, categoryBudgets, spendingByCategoryForBudgetMonth);
+    void notifyOverspend({
+      userId: user.id,
+      userEmail: user.email,
+      yearMonth: budgetMonth,
+      scopeKey: alertScope,
+      alerts: budgetAlertsRaw,
+    });
+  }, [user?.id, user?.email, financeReady, budgetMonth, alertScope, categoryBudgets, spendingByCategoryForBudgetMonth, budgetAlertsRaw]);
 
   const budgetAlertsVisible = useMemo(() => {
     const d = readDismissalsForMonth(user.id, budgetMonth, alertScope);

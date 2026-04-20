@@ -1,13 +1,19 @@
 ## SmartBudget
 
-React + Vite app for personal budgeting: sign-in (Back4App / Parse), a dashboard with charts, **monthly budgets by category**, **manual expense logging**, **CSV transaction import** from real bank exports, **savings goals**, and a **mock bank link** that imports fake accounts and transactions.
+React + Vite app for personal budgeting: sign-in (Back4App / Parse), a dashboard with charts, **monthly budgets by category**, **manual expense logging**, **CSV transaction import** from real bank exports, **savings goals**, **monthly category export (CSV / PDF)** for taxes, optional **overspend email via webhook**, and a **mock bank link** that imports fake accounts and transactions.
+
+### Implemented user stories
+
+- **As a user, I want to export monthly spending by category to PDF or CSV for taxes.** — On the **Budgets** screen, use **Export CSV** or **Export PDF** (opens the browser print dialog; choose “Save as PDF”). Exports reflect the selected budget month and category spending.
+- **As a developer, I want to be able to host my website live so other people can access it at all times.** — The app is a static Vite build you can deploy to any host (see **Deploy / live hosting**). Configure production env vars on the host so Parse and optional webhooks work.
+- **As a user, I also want an email notification to know when I am over spending so I stay on track.** — When a category goes **over** budget, the app can **POST** a JSON payload to an optional **`VITE_OVERSPEND_WEBHOOK_URL`** (e.g. Zapier/Make/IFTTT) so you can route to email. Sends at most once per category per “over” episode (tracked locally); see `.env.example`.
 
 ### Features
 
 - **Auth** — Register and sign in with email/password via Parse (Back4App). Without `.env` keys, the app will not show a session (see Setup).
 - **Dashboard** — Spending trends (mock monthly data), category donut, bar comparison, recent activity, and a savings snapshot.
-- **Budgets** — Set per-category caps by calendar month; compare to spending from bank + manual entries.
-- **Budget alerts** — In-app notifications when any category with a cap reaches **80%** of its budget or goes **over** for the selected budget month; dismiss per category (stored locally) with reminders returning if spending cools off then crosses the threshold again.
+- **Budgets** — Set per-category caps by calendar month; compare to spending from bank + manual entries. **Export** monthly spending by category as **CSV** or **PDF** (print) for taxes or records.
+- **Budget alerts** — In-app notifications when any category with a cap reaches **80%** of its budget or goes **over** for the selected budget month; dismiss per category (stored locally) with reminders returning if spending cools off then crosses the threshold again. Optional **overspend webhook** (`VITE_OVERSPEND_WEBHOOK_URL`) for external email or automation when a category is over budget.
 - **Transactions** — **Import a bank CSV** (map date, description, amount, optional category) into your ledger; add manual expenses; combine with mock bank rows when connected. Manual and CSV rows can be removed from the ledger. **Recurring bills / subscriptions**: mark a manual or CSV expense as recurring (weekly, monthly, or yearly), set next due date and optional end date, and use **Upcoming bills & subscriptions** to see projected cash outflows for the next 45 days.
 - **Goals** — Create savings goals, edit saved amount and target, remove goals. Defaults seed on first load when no saved data exists.
 - **Accounts** — View linked mock accounts when “connected,” or connect from the dashboard / accounts screen.
@@ -38,6 +44,8 @@ Edit `.env` and set:
 - `VITE_BACK4APP_JS_KEY`
 
 Optional: `VITE_BACK4APP_SERVER_URL` if you use a custom Parse API URL (default is Back4App’s host).
+
+Optional: `VITE_OVERSPEND_WEBHOOK_URL` — webhook URL for overspend notifications (see **Implemented user stories** and `.env.example`).
 
 ### Back4App database
 
@@ -96,6 +104,17 @@ Tests cover finance helpers, local/cloud finance sync (with mocks), mock bank da
 npm run build
 npm run preview
 ```
+
+### Deploy / live hosting
+
+SmartBudget is a **static site** after `npm run build` (output in `dist/`). You can host it on **Netlify**, **Vercel**, **Cloudflare Pages**, **GitHub Pages**, or any static file host so others can use it continuously.
+
+1. **Build** — `npm run build`
+2. **Upload or connect CI** — Point the host at the repo or upload `dist/`.
+3. **Environment variables** — In the host’s dashboard, set the same **`VITE_*`** variables as in `.env` (at minimum Back4App keys for auth/sync). Redeploy after changing env vars so Vite embeds them in the bundle.
+4. **HTTPS** — Use the host’s default TLS; Parse calls require a normal browser origin.
+
+This gives you a public URL; uptime depends on your chosen provider’s SLA.
 
 ### Troubleshooting
 

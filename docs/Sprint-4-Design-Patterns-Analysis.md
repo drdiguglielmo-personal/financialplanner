@@ -77,7 +77,3 @@ The sections below document **this project’s** current architecture and where 
 - **Event Sourcing / CQRS:** disproportionate for a client-heavy Parse app unless reporting and audit become core requirements.
 
 ---
-
-## 5. Sprint 4 feature stories (separate list)
-
-Track Sprint 4 **user stories and acceptance criteria** in your sprint doc or issue tracker. This file is the **design patterns analysis** deliverable for SmartBudget.

@@ -1,16 +1,28 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AuthService } from "../services/auth.js";
-import { BankService } from "../services/bank.js";
+import { getDefaultBankProvider } from "../services/bankProvider/index.js";
 import {
   applySetCategoryBudget,
   applyAddManualExpense,
   applyDeleteManualExpense,
+  applyUpdateTransactionRecurring,
   applyUpdateGoal,
   applyAddGoal,
   applyRemoveGoal,
 } from "../services/userFinance.js";
+import {
+  dismissBudgetAlert,
+  pruneBudgetAlertDismissalsForMonth,
+  readDismissalsForMonth,
+} from "../services/budgetAlertDismissals.js";
+import { financeAlertScopeKey, readActiveFinanceTarget, writeActiveFinanceTarget } from "../services/financeTarget.js";
+import { cloudHouseholdListMine } from "../services/householdCloud.js";
+import { loadHouseholdFinanceBundle, persistHouseholdFinanceBundle } from "../services/householdFinanceSync.js";
 import { loadPersistedFinance, persistFinance } from "../services/financeSync.js";
+import { isBack4AppConfigured } from "../services/parseClient.js";
 import { MONTHLY_SPENDING_DB } from "../data/mockData.js";
+import { dedupeCsvAgainstExisting } from "../utils/csvImport.js";
+import { computeBudgetAlerts, filterVisibleBudgetAlerts } from "../utils/budgetAlerts.js";
 import { mergeTransactions, spendingByCategoryForMonth, totalSpendingForMonth } from "../utils/finance.js";
 import { formatUsd } from "../utils/formatMoney.js";
 import { NAV, NAV_ITEMS, secondaryPageTitle } from "../constants/navigation.js";
@@ -18,9 +30,11 @@ import LineChart from "./charts/LineChart.jsx";
 import DonutChart from "./charts/DonutChart.jsx";
 import BarChart from "./charts/BarChart.jsx";
 import BankModal from "./BankModal.jsx";
+import BudgetAlertsBar from "./BudgetAlertsBar.jsx";
 import BudgetsPanel from "./BudgetsPanel.jsx";
 import TransactionsPanel from "./TransactionsPanel.jsx";
 import GoalsPanel from "./GoalsPanel.jsx";
+import HouseholdPanel from "./HouseholdPanel.jsx";
 import AccountsPanel from "./AccountsPanel.jsx";
 import TransactionListItem from "./TransactionListItem.jsx";
 
@@ -35,66 +49,121 @@ function previousYearMonth(ym) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const EMPTY_CATEGORY_BUDGETS = Object.freeze({});
+
 export default function Dashboard({ user }) {
   const [bankConnected, setBankConnected] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
-  const [transactions, setTransactions] = useState([]);
+  const [bankTransactions, setBankTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState("Jun");
   const [activeNav, setActiveNav] = useState(NAV.DASHBOARD);
   const [budgets, setBudgets] = useState(() => ({}));
-  const [manualExpenses, setManualExpenses] = useState(() => []);
+  const [persistedTransactions, setPersistedTransactions] = useState(() => []);
   const [goals, setGoals] = useState(() => []);
   const [budgetMonth, setBudgetMonth] = useState(currentYearMonth);
   const [financeReady, setFinanceReady] = useState(false);
+  const [budgetAlertDismissSync, setBudgetAlertDismissSync] = useState(0);
+  const [financeTarget, setFinanceTarget] = useState(() =>
+    user?.id ? readActiveFinanceTarget(user.id) : { type: "personal" }
+  );
+  const [householdMenu, setHouseholdMenu] = useState(/** @type {Array<{ householdId: string, name: string, role: string }>} */ ([]));
+  const financeLoadGen = useRef(0);
+
+  const refreshHouseholdMenu = useCallback(async () => {
+    if (!isBack4AppConfigured()) {
+      setHouseholdMenu([]);
+      return;
+    }
+    try {
+      const list = await cloudHouseholdListMine();
+      setHouseholdMenu(Array.isArray(list) ? list : []);
+    } catch {
+      setHouseholdMenu([]);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
-    let cancelled = false;
+    setFinanceTarget(readActiveFinanceTarget(user.id));
+  }, [user.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const gen = ++financeLoadGen.current;
     (async () => {
       setFinanceReady(false);
       try {
-        const bundle = await loadPersistedFinance(user.id);
-        if (cancelled) return;
+        const bundle =
+          financeTarget.type === "personal"
+            ? await loadPersistedFinance(user.id)
+            : await loadHouseholdFinanceBundle(user.id, financeTarget.householdId);
+        if (financeLoadGen.current !== gen) return;
         setBudgets(bundle.budgets);
-        setManualExpenses(bundle.manualExpenses);
+        setPersistedTransactions(bundle.transactions || []);
         setGoals(bundle.goals);
         const connected = Boolean(bundle.bankConnected);
         setBankConnected(connected);
+        const bank = getDefaultBankProvider();
         if (connected) {
-          const [acc, txs] = await Promise.all([BankService.getAccounts(), BankService.getTransactions()]);
-          if (cancelled) return;
+          const [acc, txs] = await Promise.all([bank.getAccounts(), bank.getTransactions()]);
+          if (financeLoadGen.current !== gen) return;
           setAccounts(acc);
-          setTransactions(txs);
+          setBankTransactions(txs);
         } else {
           setAccounts([]);
-          setTransactions([]);
+          setBankTransactions([]);
         }
+        if (financeLoadGen.current === gen) await refreshHouseholdMenu();
       } finally {
-        if (!cancelled) setFinanceReady(true);
+        if (financeLoadGen.current === gen) setFinanceReady(true);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user.id]);
+  }, [user.id, financeTarget, refreshHouseholdMenu]);
 
   const persist = useCallback(
     async (overrides = {}) => {
-      await persistFinance(user.id, {
+      const full = {
         budgets,
-        manualExpenses,
+        transactions: persistedTransactions,
         goals,
         bankConnected,
         ...overrides,
-      });
+      };
+      if (financeTarget.type === "personal") {
+        await persistFinance(user.id, full);
+      } else {
+        const hid = financeTarget.householdId;
+        if (!hid || String(hid).trim() === "") {
+          console.warn("SmartBudget: household scope missing id; saving to personal finance.");
+          await persistFinance(user.id, full);
+        } else {
+          await persistHouseholdFinanceBundle(user.id, hid, full);
+        }
+      }
     },
-    [user.id, budgets, manualExpenses, goals, bankConnected]
+    [user.id, financeTarget, budgets, persistedTransactions, goals, bankConnected]
+  );
+
+  const alertScope = useMemo(() => financeAlertScopeKey(financeTarget), [financeTarget]);
+
+  const handleSelectPersonal = useCallback(() => {
+    writeActiveFinanceTarget(user.id, { type: "personal" });
+    setFinanceTarget({ type: "personal" });
+  }, [user.id]);
+
+  const handleSelectHousehold = useCallback(
+    (h) => {
+      const t = { type: "household", householdId: h.householdId, name: h.name };
+      writeActiveFinanceTarget(user.id, t);
+      setFinanceTarget(t);
+    },
+    [user.id]
   );
 
   const mergedTransactions = useMemo(
-    () => mergeTransactions(transactions, manualExpenses),
-    [transactions, manualExpenses]
+    () => mergeTransactions(bankTransactions, persistedTransactions),
+    [bankTransactions, persistedTransactions]
   );
 
   const liveMonth = currentYearMonth();
@@ -111,8 +180,9 @@ export default function Dashboard({ user }) {
     setBankConnected(true);
     setShowBankModal(false);
     setAccounts(result.accounts);
-    const txs = await BankService.getTransactions();
-    setTransactions(txs);
+    const bank = getDefaultBankProvider();
+    const txs = await bank.getTransactions();
+    setBankTransactions(txs);
     await persist({ bankConnected: true });
   };
 
@@ -130,10 +200,44 @@ export default function Dashboard({ user }) {
 
   const nonDashboardTitle = secondaryPageTitle(activeNav);
 
-  const categoryBudgets = budgets[budgetMonth] || {};
+  const categoryBudgets = useMemo(() => {
+    const m = budgets[budgetMonth];
+    if (m && typeof m === "object") return m;
+    return EMPTY_CATEGORY_BUDGETS;
+  }, [budgets, budgetMonth]);
+
   const spendingByCategoryForBudgetMonth = useMemo(
     () => spendingByCategoryForMonth(mergedTransactions, budgetMonth),
     [mergedTransactions, budgetMonth]
+  );
+
+  const manualCount = useMemo(() => persistedTransactions.filter((t) => t.source === "manual").length, [persistedTransactions]);
+  const csvCount = useMemo(() => persistedTransactions.filter((t) => t.source === "csv").length, [persistedTransactions]);
+
+  useEffect(() => {
+    if (!user?.id || !financeReady) return;
+    const before = JSON.stringify(readDismissalsForMonth(user.id, budgetMonth, alertScope));
+    pruneBudgetAlertDismissalsForMonth(user.id, budgetMonth, categoryBudgets, spendingByCategoryForBudgetMonth, alertScope);
+    const after = JSON.stringify(readDismissalsForMonth(user.id, budgetMonth, alertScope));
+    if (before !== after) setBudgetAlertDismissSync((x) => x + 1);
+  }, [user?.id, financeReady, budgetMonth, categoryBudgets, spendingByCategoryForBudgetMonth, alertScope]);
+
+  const budgetAlertsRaw = useMemo(
+    () => computeBudgetAlerts(categoryBudgets, spendingByCategoryForBudgetMonth),
+    [categoryBudgets, spendingByCategoryForBudgetMonth]
+  );
+
+  const budgetAlertsVisible = useMemo(() => {
+    const d = readDismissalsForMonth(user.id, budgetMonth, alertScope);
+    return filterVisibleBudgetAlerts(budgetAlertsRaw, d);
+  }, [budgetAlertsRaw, user.id, budgetMonth, budgetAlertDismissSync, alertScope]);
+
+  const handleDismissBudgetAlert = useCallback(
+    (category, level) => {
+      dismissBudgetAlert(user.id, budgetMonth, category, level, alertScope);
+      setBudgetAlertDismissSync((x) => x + 1);
+    },
+    [user.id, budgetMonth, alertScope]
   );
 
   const handleBudgetChange = async (category, amount) => {
@@ -143,15 +247,28 @@ export default function Dashboard({ user }) {
   };
 
   const handleAddExpense = async (payload) => {
-    const { manualExpenses: nextManual } = applyAddManualExpense(manualExpenses, payload);
-    setManualExpenses(nextManual);
-    await persist({ manualExpenses: nextManual });
+    const { transactions: next } = applyAddManualExpense(persistedTransactions, payload);
+    setPersistedTransactions(next);
+    await persist({ transactions: next });
   };
 
-  const handleDeleteManual = async (id) => {
-    const nextManual = applyDeleteManualExpense(manualExpenses, id);
-    setManualExpenses(nextManual);
-    await persist({ manualExpenses: nextManual });
+  const handleDeletePersisted = async (id) => {
+    const next = applyDeleteManualExpense(persistedTransactions, id);
+    setPersistedTransactions(next);
+    await persist({ transactions: next });
+  };
+
+  const handleImportCsv = async (incoming) => {
+    const unique = dedupeCsvAgainstExisting(persistedTransactions, incoming);
+    const next = [...unique, ...persistedTransactions];
+    setPersistedTransactions(next);
+    await persist({ transactions: next });
+  };
+
+  const handleUpdateRecurring = async (id, recurring) => {
+    const next = applyUpdateTransactionRecurring(persistedTransactions, id, recurring);
+    setPersistedTransactions(next);
+    await persist({ transactions: next });
   };
 
   const handleUpdateGoalCurrent = async (id, current) => {
@@ -200,6 +317,35 @@ export default function Dashboard({ user }) {
           ))}
         </nav>
 
+        <div className="sidebar-finance-scope">
+          <div className="nav-label">Budget data</div>
+          <select
+            className="finance-scope-select"
+            aria-label="Switch between personal and household budget"
+            value={financeTarget.type === "personal" ? "personal" : `hh:${financeTarget.householdId}`}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "personal") {
+                handleSelectPersonal();
+              } else {
+                const householdId = v.startsWith("hh:") ? v.slice(3) : v;
+                const row = householdMenu.find((x) => x.householdId === householdId);
+                handleSelectHousehold({ householdId, name: row?.name || "Household" });
+              }
+            }}
+          >
+            <option value="personal">Personal</option>
+            {householdMenu.map((h) => (
+              <option key={h.householdId} value={`hh:${h.householdId}`}>
+                {h.name}
+              </option>
+            ))}
+          </select>
+          {financeTarget.type === "household" && (
+            <div className="finance-scope-hint">Shared with your household · invite under Household</div>
+          )}
+        </div>
+
         <div className="sidebar-user">
           <div className="user-avatar">{initials}</div>
           <div className="user-info">
@@ -222,7 +368,8 @@ export default function Dashboard({ user }) {
       <main className={`main-content ${!financeReady ? "finance-locked" : ""}`}>
         {!financeReady && (
           <div className="finance-loading-banner" role="status">
-            <span className="loading-spin" /> Syncing your budgets and goals…
+            <span className="loading-spin" />{" "}
+            {financeTarget.type === "household" ? "Loading household budget…" : "Syncing your budgets and goals…"}
           </div>
         )}
         <div className="page-header">
@@ -240,6 +387,15 @@ export default function Dashboard({ user }) {
             )}
           </div>
         </div>
+
+        {financeReady && budgetAlertsVisible.length > 0 && (
+          <BudgetAlertsBar
+            budgetMonth={budgetMonth}
+            alerts={budgetAlertsVisible}
+            onDismiss={handleDismissBudgetAlert}
+            onOpenBudgets={() => setActiveNav(NAV.BUDGETS)}
+          />
+        )}
 
         {activeNav === NAV.DASHBOARD && (
           <>
@@ -348,8 +504,9 @@ export default function Dashboard({ user }) {
                     <div className="chart-title">Recent Transactions</div>
                     <div className="chart-sub">
                       {mergedTransactions.length} total
-                      {bankConnected ? ` · ${transactions.length} from bank` : ""}
-                      {manualExpenses.length > 0 ? ` · ${manualExpenses.length} manual` : ""}
+                      {bankConnected ? ` · ${bankTransactions.length} from bank` : ""}
+                      {manualCount > 0 ? ` · ${manualCount} manual` : ""}
+                      {csvCount > 0 ? ` · ${csvCount} CSV` : ""}
                     </div>
                   </div>
                 </div>
@@ -415,8 +572,11 @@ export default function Dashboard({ user }) {
         {activeNav === NAV.TRANSACTIONS && (
           <TransactionsPanel
             transactions={mergedTransactions}
+            persistedTransactions={persistedTransactions}
             onAddExpense={handleAddExpense}
-            onDeleteManual={handleDeleteManual}
+            onDeletePersisted={handleDeletePersisted}
+            onImportCsv={handleImportCsv}
+            onUpdateRecurring={handleUpdateRecurring}
             bankConnected={bankConnected}
           />
         )}
@@ -428,6 +588,16 @@ export default function Dashboard({ user }) {
             onUpdateTarget={handleUpdateGoalTarget}
             onAddGoal={handleAddGoal}
             onRemoveGoal={handleRemoveGoal}
+          />
+        )}
+
+        {activeNav === NAV.HOUSEHOLD && (
+          <HouseholdPanel
+            user={user}
+            financeTarget={financeTarget}
+            onSelectPersonal={handleSelectPersonal}
+            onSelectHousehold={handleSelectHousehold}
+            onHouseholdsChanged={refreshHouseholdMenu}
           />
         )}
 

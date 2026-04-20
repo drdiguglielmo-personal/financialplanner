@@ -46,7 +46,7 @@ describe("financeSync", () => {
 
     const bundle = await loadPersistedFinance("new_user");
     expect(bundle.budgets).toEqual({});
-    expect(bundle.manualExpenses).toEqual([]);
+    expect(bundle.transactions).toEqual([]);
     expect(bundle.bankConnected).toBe(false);
     expect(bundle.goals.length).toBe(getDefaultGoals().length);
     expect(saveUserFinanceState).not.toHaveBeenCalled();
@@ -72,13 +72,16 @@ describe("financeSync", () => {
     const remoteGoals = [{ id: "remote1", name: "Trip", target: 1000, current: 100, color: "#00f", icon: "✈️" }];
     vi.mocked(fetchUserFinanceState).mockResolvedValue({
       budgets: { "2026-06": { Transport: 80 } },
-      manualExpenses: [{ id: "m1", amount: -5, category: "Dining", date: "2026-06-01" }],
+      transactions: [],
+      manualExpenses: [{ id: "m1", name: "Lunch", amount: -5, category: "Dining", date: "2026-06-01", source: "manual" }],
       goals: remoteGoals,
       bankConnected: true,
     });
 
     const bundle = await loadPersistedFinance("cloud_user");
     expect(bundle.bankConnected).toBe(true);
+    expect(bundle.transactions).toHaveLength(1);
+    expect(bundle.transactions[0].id).toBe("m1");
     expect(bundle.goals).toEqual(remoteGoals);
     expect(globalThis.localStorage.getItem("smartbudget:cloud_user:bankConnected")).toBe("1");
   });
@@ -105,14 +108,17 @@ describe("financeSync", () => {
     const uid = "persist";
     const bundle = {
       budgets: {},
-      manualExpenses: [],
+      transactions: [],
       goals: getDefaultGoals(),
       bankConnected: true,
     };
     await persistFinance(uid, bundle);
 
     expect(globalThis.localStorage.getItem("smartbudget:persist:bankConnected")).toBe("1");
-    expect(saveUserFinanceState).toHaveBeenCalledWith(bundle);
+    expect(saveUserFinanceState).toHaveBeenCalled();
+    const saved = vi.mocked(saveUserFinanceState).mock.calls[0][0];
+    expect(saved.transactions).toEqual([]);
+    expect(saved.manualExpenses).toEqual([]);
   });
 
   it("persistFinance skips cloud when Back4App is not configured", async () => {
@@ -120,7 +126,7 @@ describe("financeSync", () => {
 
     await persistFinance("x", {
       budgets: {},
-      manualExpenses: [],
+      transactions: [],
       goals: getDefaultGoals(),
       bankConnected: false,
     });
@@ -136,7 +142,7 @@ describe("financeSync", () => {
     await expect(
       persistFinance("err", {
         budgets: {},
-        manualExpenses: [],
+        transactions: [],
         goals: getDefaultGoals(),
         bankConnected: false,
       })

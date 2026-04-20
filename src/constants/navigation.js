@@ -5,6 +5,7 @@ export const NAV = {
   TRANSACTIONS: "transactions",
   GOALS: "goals",
   ACCOUNTS: "accounts",
+  HOUSEHOLD: "household",
 };
 
 export const NAV_ITEMS = [
@@ -13,6 +14,7 @@ export const NAV_ITEMS = [
   { id: NAV.TRANSACTIONS, icon: "💳", label: "Transactions" },
   { id: NAV.GOALS, icon: "🎯", label: "Goals" },
   { id: NAV.ACCOUNTS, icon: "🏦", label: "Accounts" },
+  { id: NAV.HOUSEHOLD, icon: "👪", label: "Household" },
 ];
 
 const SECONDARY_PAGE_TITLES = {
@@ -20,6 +22,7 @@ const SECONDARY_PAGE_TITLES = {
   [NAV.TRANSACTIONS]: "Transactions",
   [NAV.GOALS]: "Savings goals",
   [NAV.ACCOUNTS]: "Accounts",
+  [NAV.HOUSEHOLD]: "Household sharing",
 };
 
 /** Title shown in the header when a secondary view is active (not the dashboard greeting). */

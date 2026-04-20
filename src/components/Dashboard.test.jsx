@@ -3,11 +3,22 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dashboard from "./Dashboard.jsx";
 import * as financeSync from "../services/financeSync.js";
+import * as householdCloud from "../services/householdCloud.js";
+import * as householdFinanceSync from "../services/householdFinanceSync.js";
 import { BankService } from "../services/bank.js";
 
 vi.mock("../services/financeSync.js", () => ({
   loadPersistedFinance: vi.fn(),
   persistFinance: vi.fn(),
+}));
+
+vi.mock("../services/householdFinanceSync.js", () => ({
+  loadHouseholdFinanceBundle: vi.fn(),
+  persistHouseholdFinanceBundle: vi.fn(),
+}));
+
+vi.mock("../services/householdCloud.js", () => ({
+  cloudHouseholdListMine: vi.fn(),
 }));
 
 vi.mock("../services/bank.js", () => ({
@@ -24,6 +35,14 @@ vi.mock("../services/auth.js", () => ({
   },
 }));
 
+vi.mock("../services/parseClient.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    isBack4AppConfigured: vi.fn(() => false),
+  };
+});
+
 const mockUser = {
   id: "parseUser123",
   name: "Alex Johnson",
@@ -37,7 +56,7 @@ const minimalGoals = [
 function baseBundle(overrides = {}) {
   return {
     budgets: {},
-    manualExpenses: [],
+    transactions: [],
     goals: minimalGoals,
     bankConnected: false,
     ...overrides,
@@ -48,6 +67,9 @@ describe("Dashboard", () => {
   beforeEach(() => {
     vi.mocked(financeSync.loadPersistedFinance).mockResolvedValue(baseBundle());
     vi.mocked(financeSync.persistFinance).mockResolvedValue(undefined);
+    vi.mocked(householdFinanceSync.loadHouseholdFinanceBundle).mockResolvedValue(baseBundle());
+    vi.mocked(householdFinanceSync.persistHouseholdFinanceBundle).mockResolvedValue(undefined);
+    vi.mocked(householdCloud.cloudHouseholdListMine).mockResolvedValue([]);
     vi.mocked(BankService.getAccounts).mockResolvedValue([
       { id: "acc_checking", name: "Chase Checking", type: "checking", balance: 100, bank: "Chase" },
     ]);

@@ -1,6 +1,14 @@
 import { isBack4AppConfigured } from "./parseClient.js";
 import { fetchUserFinanceState, saveUserFinanceState } from "./financeRemote.js";
-import { createDefaultFinanceBundle, getDefaultGoals, hasPersistedLocalFinance, loadLocalFinance, saveLocalFinance } from "./userFinance.js";
+import {
+  bundleForPersistence,
+  createDefaultFinanceBundle,
+  getDefaultGoals,
+  hasPersistedLocalFinance,
+  loadLocalFinance,
+  normalizeFinanceBundle,
+  saveLocalFinance,
+} from "./userFinance.js";
 
 /**
  * Load budgets, manual expenses, and goals — from Back4App when configured, else localStorage.
@@ -17,20 +25,22 @@ export async function loadPersistedFinance(userId) {
     if (!remote) {
       if (hasPersistedLocalFinance(userId)) {
         const local = loadLocalFinance(userId);
-        await saveUserFinanceState(local);
-        saveLocalFinance(userId, local);
-        return local;
+        const toSave = bundleForPersistence(local);
+        await saveUserFinanceState(toSave);
+        saveLocalFinance(userId, toSave);
+        return normalizeFinanceBundle(toSave);
       }
       return createDefaultFinanceBundle();
     }
 
     let goals = Array.isArray(remote.goals) && remote.goals.length > 0 ? remote.goals : getDefaultGoals();
-    const bundle = {
+    const bundle = normalizeFinanceBundle({
       budgets: remote.budgets && typeof remote.budgets === "object" ? remote.budgets : {},
       manualExpenses: Array.isArray(remote.manualExpenses) ? remote.manualExpenses : [],
+      transactions: Array.isArray(remote.transactions) ? remote.transactions : [],
       goals,
       bankConnected: Boolean(remote.bankConnected),
-    };
+    });
     saveLocalFinance(userId, bundle);
     return bundle;
   } catch (e) {
@@ -43,14 +53,15 @@ export async function loadPersistedFinance(userId) {
  * Writes to localStorage (cache/offline) and Back4App when configured.
  * Cloud failures are logged; local save still succeeds first.
  * @param {string} userId
- * @param {{ budgets: object, manualExpenses: object[], goals: object[], bankConnected?: boolean }} bundle
+ * @param {{ budgets: object, transactions?: object[], manualExpenses?: object[], goals: object[], bankConnected?: boolean }} bundle
  */
 export async function persistFinance(userId, bundle) {
-  saveLocalFinance(userId, bundle);
+  const normalized = bundleForPersistence(bundle);
+  saveLocalFinance(userId, normalized);
   if (!isBack4AppConfigured()) return;
 
   try {
-    await saveUserFinanceState(bundle);
+    await saveUserFinanceState(normalized);
   } catch (e) {
     console.warn("SmartBudget: cloud finance save failed (saved locally).", e);
   }

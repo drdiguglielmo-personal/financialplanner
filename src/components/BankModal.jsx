@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BankService } from "../services/bank.js";
+import { getDefaultBankProvider } from "../services/bankProvider/index.js";
 
 export default function BankModal({ onClose, onConnect }) {
   const [selected, setSelected] = useState(null);
@@ -15,7 +15,7 @@ export default function BankModal({ onClose, onConnect }) {
   const handleConnect = async () => {
     if (!selected) return;
     setConnecting(true);
-    const result = await BankService.connect(selected);
+    const result = await getDefaultBankProvider().connect(selected);
     onConnect(result);
     setConnecting(false);
   };

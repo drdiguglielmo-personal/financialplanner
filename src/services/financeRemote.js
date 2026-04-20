@@ -9,7 +9,7 @@ function getUserFinanceClass() {
 }
 
 /**
- * @returns {Promise<{ budgets: object, manualExpenses: object[], goals: object[], bankConnected?: boolean } | null>}
+ * @returns {Promise<{ budgets: object, transactions?: object[], manualExpenses: object[], goals: object[], bankConnected?: boolean } | null>}
  */
 export async function fetchUserFinanceState() {
   const user = Parse.User.current();
@@ -21,6 +21,7 @@ export async function fetchUserFinanceState() {
   if (!obj) return null;
   return {
     budgets: obj.get("budgets") || {},
+    transactions: obj.get("transactions") || [],
     manualExpenses: obj.get("manualExpenses") || [],
     goals: obj.get("goals") || [],
     bankConnected: Boolean(obj.get("bankConnected")),
@@ -29,7 +30,7 @@ export async function fetchUserFinanceState() {
 
 /**
  * Creates or updates the current user's finance document on Back4App.
- * @param {{ budgets: object, manualExpenses: object[], goals: object[], bankConnected?: boolean }} bundle
+ * @param {{ budgets: object, transactions?: object[], manualExpenses?: object[], goals: object[], bankConnected?: boolean }} bundle
  */
 export async function saveUserFinanceState(bundle) {
   const user = Parse.User.current();
@@ -48,6 +49,7 @@ export async function saveUserFinanceState(bundle) {
   }
 
   obj.set("budgets", bundle.budgets || {});
+  obj.set("transactions", bundle.transactions || []);
   obj.set("manualExpenses", bundle.manualExpenses || []);
   obj.set("goals", bundle.goals || []);
   obj.set("bankConnected", Boolean(bundle.bankConnected));

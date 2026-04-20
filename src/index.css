@@ -195,19 +195,30 @@
     position: sticky;
     top: 0;
     height: 100vh;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 
   .sidebar-logo {
-    display: flex; align-items: center; gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 0 8px;
     margin-bottom: 40px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .sidebar-logo-icon {
-    width: 32px; height: 32px;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
     background: linear-gradient(135deg, var(--accent), var(--accentB));
     border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 15px;
   }
 
@@ -216,6 +227,11 @@
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.3px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sidebar-nav { flex: 1; }
@@ -310,7 +326,13 @@
   }
 
   .user-info { flex: 1; min-width: 0; }
-  .user-name { font-size: 13px; font-weight: 500; truncate: ellipsis; white-space: nowrap; overflow: hidden; }
+  .user-name {
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
   .user-role { font-size: 11px; color: var(--text3); }
 
   .btn-logout {
@@ -677,7 +699,9 @@
     .charts-grid { grid-template-columns: 1fr; }
     .charts-grid .chart-card.full { grid-column: 1; }
     .bottom-grid { grid-template-columns: 1fr; }
-    .sidebar { width: 180px; padding: 20px 12px; }
+    /* 180px was too tight for icon + "SmartBudget" — text bled into main; 200px + ellipsis keeps layout clean */
+    .sidebar { width: 200px; padding: 20px 12px; }
+    .sidebar-logo-text { font-size: 16px; }
   }
   @media (max-width: 640px) {
     .app-layout { flex-direction: column; }

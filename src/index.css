@@ -184,7 +184,7 @@
 
   /* ─── SIDEBAR ─── */
   .sidebar {
-    width: 220px;
+    width: 300px;
     min-height: 100vh;
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -227,6 +227,8 @@
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.3px;
+    line-height: 1.2;
+    padding-bottom: 2px; /* prevents descenders like “g” clipping in some font renders */
     min-width: 0;
     flex: 1;
     overflow: hidden;
@@ -371,7 +373,8 @@
     font-size: 32px;
     font-weight: 800;
     letter-spacing: -1px;
-    line-height: 1.1;
+    line-height: 1.2;
+    padding-bottom: 2px; /* prevents descenders like “g” clipping */
   }
 
   .page-title span { color: var(--accent); }
@@ -521,7 +524,7 @@
   }
 
   /* ─── TRANSACTIONS ─── */
-  .tx-list { }
+  .tx-list { list-style: none; }
 
   .tx-item {
     display: flex;
@@ -549,11 +552,25 @@
   .tx-amount { font-family: var(--font-head); font-size: 14px; font-weight: 600; flex-shrink: 0; }
   .tx-amount.neg { color: var(--danger); }
   .tx-item-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-  .btn-icon-recurring {
-    background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px;
-    padding: 6px 8px; border-radius: 6px; line-height: 1;
+  .btn-recurring {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(167,139,250,0.12);
+    border: 1px solid rgba(167,139,250,0.25);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 999px;
+    line-height: 1;
+    white-space: nowrap;
   }
-  .btn-icon-recurring:hover { color: var(--accentE); background: rgba(167,139,250,0.1); }
+  .btn-recurring:hover { background: rgba(167,139,250,0.18); border-color: rgba(167,139,250,0.35); }
+  .btn-recurring:active { transform: translateY(0.5px); }
+  .btn-recurring-icon { font-size: 14px; line-height: 1; }
+  .btn-recurring-label { line-height: 1; }
   .tx-amount.pos { color: var(--accent); }
 
   /* ─── SAVINGS GOALS ─── */
@@ -699,9 +716,9 @@
     .charts-grid { grid-template-columns: 1fr; }
     .charts-grid .chart-card.full { grid-column: 1; }
     .bottom-grid { grid-template-columns: 1fr; }
-    /* 180px was too tight for icon + "SmartBudget" — text bled into main; 200px + ellipsis keeps layout clean */
-    .sidebar { width: 200px; padding: 20px 12px; }
-    .sidebar-logo-text { font-size: 16px; }
+    /* Keep sidebar wide enough for logo label */
+    .sidebar { width: 260px; padding: 20px 12px; }
+    .sidebar-logo-text { font-size: 18px; }
   }
   @media (max-width: 640px) {
     .app-layout { flex-direction: column; }

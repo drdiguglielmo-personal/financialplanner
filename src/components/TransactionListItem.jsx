@@ -16,6 +16,7 @@ export default function TransactionListItem({ tx, showDate = false, onDeletePers
   const canDelete = (manual || csv) && onDeletePersisted;
   const canRecurring = (manual || csv) && onManageRecurring;
   const hasRecurring = Boolean(tx.recurring);
+  const recurringLabel = hasRecurring ? "Recurring" : "Make recurring";
 
   return (
     <div className="tx-item">
@@ -38,11 +39,14 @@ export default function TransactionListItem({ tx, showDate = false, onDeletePers
           {canRecurring && (
             <button
               type="button"
-              className="btn-icon-recurring"
+              className="btn-recurring"
               title={hasRecurring ? "Edit recurring schedule" : "Mark as recurring bill"}
               onClick={() => onManageRecurring(tx)}
             >
-              🔁
+              <span className="btn-recurring-icon" aria-hidden="true">
+                🔁
+              </span>
+              <span className="btn-recurring-label">{recurringLabel}</span>
             </button>
           )}
           {canDelete && (

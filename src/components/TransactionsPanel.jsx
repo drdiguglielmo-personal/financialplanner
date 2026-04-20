@@ -161,8 +161,7 @@ export default function TransactionsPanel({
           <div>
             <div className="chart-title">Import from bank (CSV)</div>
             <div className="chart-sub">
-              Export transactions from your bank&apos;s website, then map columns here. Plaid live linking is scaffolded under{" "}
-              <code className="inline-code">src/services/bankProvider/</code> (not wired yet).
+              Export transactions from your bank&apos;s website, then map columns here.
             </div>
           </div>
         </div>
@@ -262,13 +261,10 @@ export default function TransactionsPanel({
         <div className="chart-header">
           <div>
             <div className="chart-title">Upcoming bills & subscriptions</div>
-            <div className="chart-sub">
-              Mark manual or CSV expenses as recurring (🔁) to see projected due dates for the next 45 days.
-            </div>
           </div>
         </div>
         {upcomingOccurrences.length === 0 ? (
-          <div className="upcoming-empty">No upcoming recurring items. Add an expense, then tap 🔁 on that row to set cadence and next due date.</div>
+          <div className="upcoming-empty">No upcoming recurring items.</div>
         ) : (
           <ul className="upcoming-list">
             {upcomingOccurrences.map((row, idx) => (
